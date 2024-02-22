@@ -1,0 +1,30 @@
+#import intf_libs += libboost-process
+
+lib{crails-crontab}: {hxx ixx txx cxx}{**} $impl_libs $intf_libs
+
+hxx{export}@./: cxx.importable = false
+
+cxx.poptions =+ "-I$out_root" "-I$src_root"
+
+{hbmia obja}{*}: cxx.poptions += -DLIBCRAILS_CRONTAB_STATIC_BUILD
+{hbmis objs}{*}: cxx.poptions += -DLIBCRAILS_CRONTAB_SHARED_BUILD
+
+lib{crails-crontab}:
+{
+  cxx.export.poptions = "-I$out_root/libcrails-crontab/" "-I$src_root/libcrails-crontab/"
+  cxx.export.libs = $intf_libs
+}
+
+liba{crails-crontab}: cxx.export.poptions += -DLIBCRAILS_CRONTAB_STATIC
+libs{crails-crontab}: cxx.export.poptions += -DLIBCRAILS_CRONTAB_SHARED
+
+if $version.pre_release
+  lib{crails-crontab}: bin.lib.version = "-$version.project_id"
+else
+  lib{crails-crontab}: bin.lib.version = "-$version.major.$version.minor"
+
+{hxx ixx txx}{*}:
+{
+  install         = include/
+  install.subdirs = true
+}

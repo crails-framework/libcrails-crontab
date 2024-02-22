@@ -1,0 +1,3 @@
+import libs = libcrails-crontab%lib{crails-crontab}
+
+exe{driver}: {hxx ixx txx cxx}{**} $libs testscript{**}

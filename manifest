@@ -1,0 +1,14 @@
+: 1
+name: libcrails-crontab
+version: 2.0.0
+language: c++
+project: crails-modules
+summary: crails-crontab C++ library
+license: BSD-C3 
+description-file: README.md
+url: https://example.org/crails-modules
+email: michael@planed.es
+#build-error-email: you@example.org
+depends: * build2 >= 0.16.0
+depends: * bpkg >= 0.16.0
+depends: libboost-process >= 1.74
