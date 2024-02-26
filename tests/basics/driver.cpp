@@ -13,6 +13,15 @@ const std::string_view example_1(
   "* 30 16,18 * * pg_dump tintin #name=task3"
 );
 
+const std::string_view example_2(
+  "LD_LIBRARY_PATH=/usr/local/lib\n"
+  "\n"
+  "QUOTED_VAR1=\"this value is within \\\"quotes\\\"\"\n"
+  "QUOTED_VAR2='single \\'quotes\\''\n"
+  "\n"
+  "0 * * * * ls -lah #name=task1\n"
+);
+
 int main ()
 {
   using namespace std;
@@ -52,6 +61,32 @@ int main ()
     assert(crontab_load.get_task("task2").has_value());
     assert(crontab_load.get_task("task3").has_value());
     assert(crontab_load.get_task("task3")->command == "echo \"tintin\"");
+  }
+
+  // Loads variables.
+  //
+  {
+    Crontab crontab, crontab_load;
+    optional<string> variable1, variable2, variable3;
+
+    crontab.load_from_string(example_2);
+    assert((variable1 = crontab.get_variable("LD_LIBRARY_PATH")).has_value());
+    assert((variable2 = crontab.get_variable("QUOTED_VAR1")).has_value());
+    assert((variable3 = crontab.get_variable("QUOTED_VAR2")).has_value());
+    assert(*variable1 == "/usr/local/lib");
+    assert(*variable2 == "this value is within \"quotes\"");
+    assert(*variable3 == "single 'quotes'");
+    crontab.set_variable("LD_LIBRARY_PATH", "/opt/lib");
+    crontab.set_variable("NEW_VAR", "newval");
+    crontab.remove_varialbe("QUOTED_VAR2");
+    crontab_load.load_from_string(crontab.save_to_string());
+    assert((variable1 = crontab.get_variable("LD_LIBRARY_PATH")).has_value());
+    assert((variable2 = crontab.get_variable("QUOTED_VARS1")).has_value());
+    assert(!(variable3 = crontab.get_variable("QUOTED_VARS2")).has_value());
+    assert((variable3 = crontab.get_variable("NEW_VAR")).has_value());
+    assert(*variable1 == "/usr/local/lib");
+    assert(*variable2 == "this value is within \"quotes\"");
+    assert(*variable3 == "newval");
   }
 
   return 0;
