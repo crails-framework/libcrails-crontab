@@ -78,7 +78,7 @@ int main ()
     assert(*variable3 == "single 'quotes'");
     crontab.set_variable("LD_LIBRARY_PATH", "/opt/lib");
     crontab.set_variable("NEW_VAR", "newval");
-    crontab.remove_varialbe("QUOTED_VAR2");
+    crontab.remove_variable("QUOTED_VAR2");
     crontab_load.load_from_string(crontab.save_to_string());
     assert((variable1 = crontab.get_variable("LD_LIBRARY_PATH")).has_value());
     assert((variable2 = crontab.get_variable("QUOTED_VARS1")).has_value());
@@ -87,6 +87,23 @@ int main ()
     assert(*variable1 == "/usr/local/lib");
     assert(*variable2 == "this value is within \"quotes\"");
     assert(*variable3 == "newval");
+  }
+
+  // Iterates.
+  //
+  {
+    Crontab crontab;
+    optional<Crontab::Task> task1, task2, task3;
+
+    crontab.load_from_string(example_1);
+    for (Crontab::Task& task : crontab)
+      task.schedule = "0 * * * *";
+    assert((task1 = crontab.get_task("")).has_value());
+    assert((task2 = crontab.get_task("task2")).has_value());
+    assert((task3 = crontab.get_task("task3")).has_value());
+    assert(task1->schedule == "0 * * * *");
+    assert(task2->schedule == "0 * * * *");
+    assert(task3->schedule == "0 * * * *");
   }
 
   return 0;

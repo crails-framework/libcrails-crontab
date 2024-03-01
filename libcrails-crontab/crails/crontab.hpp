@@ -16,6 +16,9 @@ namespace Crails
       bool operator==(const std::string_view value) const { return name == value; }
     };
 
+    typedef std::vector<Task>::iterator iterator;
+    typedef std::vector<Task>::const_iterator const_iterator;
+
     Crontab();
 
     void load();
@@ -30,6 +33,12 @@ namespace Crails
     void remove_task(const std::string_view name);
     void set_variable(const std::string_view name, const std::string_view value);
     void remove_variable(const std::string_view name);
+
+    std::vector<Task>::iterator begin() { return tasks.begin(); }
+    std::vector<Task>::iterator end() { return tasks.end(); }
+    std::vector<Task>::iterator erase(std::vector<Task>::iterator it) { return tasks.erase(it); }
+    std::vector<Task>::const_iterator cbegin() const { return std::cbegin(tasks); }
+    std::vector<Task>::const_iterator cend() const { return std::cend(tasks); }
 
   private:
     std::map<std::string,std::string> variables;
