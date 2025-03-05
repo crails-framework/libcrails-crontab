@@ -2,6 +2,7 @@
 #include <boost/process.hpp>
 #include <sstream>
 #include <regex>
+#include <iomanip>
 
 using namespace Crails;
 using namespace std;
