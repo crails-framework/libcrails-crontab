@@ -1,4 +1,7 @@
-#import intf_libs += libboost-process
+if ($config.libcrails_crontab.alt_build2_imports)
+  import libs += libboost-process%lib{boost_process}
+else
+  import intf_libs += libboost-process%lib{boost_process}
 
 lib{crails-crontab}: {hxx ixx txx cxx}{**} $impl_libs $intf_libs
 

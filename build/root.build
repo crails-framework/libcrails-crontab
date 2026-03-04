@@ -1,3 +1,5 @@
+config [bool] config.libcrails_crontab.alt_build2_imports ?= false
+
 # Uncomment to suppress warnings coming from external libraries.
 #
 #cxx.internal.scope = current
