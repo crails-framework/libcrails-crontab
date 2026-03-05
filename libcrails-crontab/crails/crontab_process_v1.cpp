@@ -1,14 +1,6 @@
-#ifndef LIBCRAILS_CRONTAB_BOOST_PROCESS_V1
+#ifdef LIBCRAILS_CRONTAB_BOOST_PROCESS_V1
 #include "crontab.hpp"
-#include <boost/version.hpp>
-#if BOOST_VERSION >= 108600
-# include <boost/process.hpp>
-namespace boost_process = boost::process;
-#else
-# include <boost/process/v2.hpp>
-namespace boost_process = boost::process::v2;
-#endif
-#include <boost/asio.hpp>
+#include <boost/process.hpp>
 #include <sstream>
 #include <regex>
 #include <iomanip>
@@ -77,65 +69,33 @@ static string task_to_string(const Crontab::Task& task)
     : (crontask + " #name=" + task.name);
 }
 
-static string drain_pipe(boost::asio::readable_pipe& pipe)
+template<typename STREAM>
+static void load_from_stream(map<string,string>& variables, vector<Crontab::Task>& tasks, STREAM& stream)
 {
-  string result;
-  boost::system::error_code ec;
-  char buffer[4096];
-  size_t n;
+  string line;
 
-  do
+  tasks.clear();
+  while (getline(stream, line))
   {
-    n = pipe.read_some(boost::asio::buffer(buffer), ec);
-    if (n > 0)
-      result.append(buffer, n);
-  } while (!ec && n > 0);
-  return result;
-}
-
-static void load_from_string(map<string,string>& variables, vector<Crontab::Task>& tasks, const string_view input)
-{
-  size_t n = 0;
-
-  for (size_t i = 0 ; i < input.length() ; ++i)
-  {
-    if (input[i] == '\n' || input[i] == '\r')
+    if (line.length() > 0 && line[0] != '#')
     {
-      regex       variable_pattern("^[a-zA-Z]+[a-zA-Z0-9_]*=");
-      string_view part(&(input.data()[n]), i - n);
+      regex variable_pattern("^[a-zA-Z]+[a-zA-Z0-9_]*=");
 
-      if (part.length() > 0 && part[0] != '#')
-      {
-        if (regex_search(part.begin(), part.end(), variable_pattern))
-          variables.insert(read_variable(part));
-        else
-          tasks.push_back(read_crontask(part));
-      }
+      if (regex_search(line, variable_pattern))
+        variables.insert(read_variable(line));
+      else
+        tasks.push_back(read_crontask(line));
     }
   }
 }
 
-static void load_from_pipe(map<string,string>& variables, vector<Crontab::Task>& tasks, boost::asio::readable_pipe& pipe)
-{
-  string input = drain_pipe(pipe);
-
-  load_from_string(variables, tasks, input);
-}
-
-static void save_to_stream(const map<string,string>& variables, const vector<Crontab::Task>& tasks, std::ostream& stream)
+template<typename STREAM>
+static void save_to_stream(const map<string,string>& variables, const vector<Crontab::Task>& tasks, STREAM& stream)
 {
   for (const auto& entry : variables)
     stream << entry.first << '=' << quoted(entry.second) << '\n';
   for (const Crontab::Task& task : tasks)
     stream << task_to_string(task) << '\n';
-}
-
-static void save_to_pipe(const map<string,string>& variables, const vector<Crontab::Task>& tasks, boost::asio::writable_pipe& pipe)
-{
-  ostringstream stream;
-
-  save_to_stream(variables, tasks, stream);
-  boost::asio::write(pipe, boost::asio::buffer(stream.str()));
 }
 
 Crontab::Crontab()
@@ -144,33 +104,22 @@ Crontab::Crontab()
 
 void Crontab::load()
 {
-  boost::asio::io_context ios;
-  boost::asio::readable_pipe std_out(ios);
-  boost_process::process process(
-    ios, "/usr/bin/crontab", {"-l"},
-    boost_process::process_stdio{nullptr, std_out, {}}
-  );
+  boost::process::ipstream stream;
+  boost::process::child process("crontab -l", boost::process::std_out > stream);
 
-  process.wait();
-  load_from_pipe(variables, tasks, std_out);
+  load_from_stream(variables, tasks, stream);
+  process.wait(); 
 }
 
 bool Crontab::save()
 {
   if (tasks.size() > 0)
   {
-    boost::asio::io_context ios;
-    boost::asio::readable_pipe sink(ios);
-    boost::asio::writable_pipe std_in(ios);
-    boost::asio::connect_pipe(sink, std_in);
-    boost_process::process process(
-      ios, "/usr/bin/crontab", {},
-      boost_process::process_stdio{sink, {}, {}}
-    );
+    boost::process::opstream stream;
+    boost::process::child process("crontab", boost::process::std_in < stream);
 
-    save_to_pipe(variables, tasks, std_in);
-    std_in.close();
-    process.wait();
+    save_to_stream(variables, tasks, stream);
+    process.terminate();
     return process.exit_code() == 0;
   }
   return destroy();
@@ -178,8 +127,7 @@ bool Crontab::save()
 
 bool Crontab::destroy()
 {
-  boost::asio::io_context ios;
-  boost_process::process process(ios, "/usr/bin/crontab", {"-r"});
+  boost::process::child process("crontab -r");
 
   process.wait();
   return process.exit_code() == 0;
@@ -187,7 +135,9 @@ bool Crontab::destroy()
 
 void Crontab::load_from_string(const string_view source)
 {
-  ::load_from_string(variables, tasks, source);
+  istringstream stream(string(source), ios_base::in);
+
+  load_from_stream(variables, tasks, stream);
 }
 
 string Crontab::save_to_string() const

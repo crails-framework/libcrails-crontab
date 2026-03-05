@@ -9,6 +9,9 @@ hxx{export}@./: cxx.importable = false
 
 cxx.poptions =+ "-I$out_root" "-I$src_root"
 
+if ($config.libcrails_crontab.boost_process_force_v1)
+  cxx.poptions += "-DLIBCRAILS_CRONTAB_BOOST_PROCESS_V1"
+
 {hbmia obja}{*}: cxx.poptions += -DLIBCRAILS_CRONTAB_STATIC_BUILD
 {hbmis objs}{*}: cxx.poptions += -DLIBCRAILS_CRONTAB_SHARED_BUILD
 

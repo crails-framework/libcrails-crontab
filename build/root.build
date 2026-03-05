@@ -1,4 +1,5 @@
 config [bool] config.libcrails_crontab.alt_build2_imports ?= false
+config [bool] config.libcrails_crontab.boost_process_force_v1 ?= false
 
 # Uncomment to suppress warnings coming from external libraries.
 #
