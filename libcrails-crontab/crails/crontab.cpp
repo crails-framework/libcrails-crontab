@@ -93,6 +93,21 @@ static string drain_pipe(boost::asio::readable_pipe& pipe)
   return result;
 }
 
+static void load_from_line(map<string,string>& variables, vector<Crontab::Task>& tasks, const string_view input, size_t n, size_t i)
+{
+  regex       variable_pattern("^[a-zA-Z]+[a-zA-Z0-9_]*=");
+  string_view part(&(input.data()[n]), i - n);
+
+  if (part.length() > 0 && part[0] != '#')
+  {
+    if (regex_search(part.begin(), part.end(), variable_pattern))
+      variables.insert(read_variable(part));
+    else
+      tasks.push_back(read_crontask(part));
+  }
+}
+
+
 static void load_from_string(map<string,string>& variables, vector<Crontab::Task>& tasks, const string_view input)
 {
   size_t n = 0;
@@ -101,18 +116,12 @@ static void load_from_string(map<string,string>& variables, vector<Crontab::Task
   {
     if (input[i] == '\n' || input[i] == '\r')
     {
-      regex       variable_pattern("^[a-zA-Z]+[a-zA-Z0-9_]*=");
-      string_view part(&(input.data()[n]), i - n);
-
-      if (part.length() > 0 && part[0] != '#')
-      {
-        if (regex_search(part.begin(), part.end(), variable_pattern))
-          variables.insert(read_variable(part));
-        else
-          tasks.push_back(read_crontask(part));
-      }
+      load_from_line(variables, tasks, input, n, i);
+      n = i + 1;
     }
   }
+  if (n < input.length())
+    load_from_line(variables, tasks, input, n, input.length());
 }
 
 static void load_from_pipe(map<string,string>& variables, vector<Crontab::Task>& tasks, boost::asio::readable_pipe& pipe)

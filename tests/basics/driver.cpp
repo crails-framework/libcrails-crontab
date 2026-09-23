@@ -81,10 +81,10 @@ int main ()
     crontab.remove_variable("QUOTED_VAR2");
     crontab_load.load_from_string(crontab.save_to_string());
     assert((variable1 = crontab.get_variable("LD_LIBRARY_PATH")).has_value());
-    assert((variable2 = crontab.get_variable("QUOTED_VARS1")).has_value());
-    assert(!(variable3 = crontab.get_variable("QUOTED_VARS2")).has_value());
+    assert((variable2 = crontab.get_variable("QUOTED_VAR1")).has_value());
+    assert(!(variable3 = crontab.get_variable("QUOTED_VAR2")).has_value());
     assert((variable3 = crontab.get_variable("NEW_VAR")).has_value());
-    assert(*variable1 == "/usr/local/lib");
+    assert(*variable1 == "/opt/lib");
     assert(*variable2 == "this value is within \"quotes\"");
     assert(*variable3 == "newval");
   }
