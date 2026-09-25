@@ -11,4 +11,5 @@ email: michael@planed.es
 #build-error-email: you@example.org
 depends: * build2 >= 0.16.0
 depends: * bpkg >= 0.16.0
+depends: libcrails-semantics ^2.0.0
 depends: libboost-process >= 1.74

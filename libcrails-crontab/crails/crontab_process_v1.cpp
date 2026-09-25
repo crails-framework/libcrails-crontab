@@ -119,7 +119,8 @@ bool Crontab::save()
     boost::process::child process("crontab", boost::process::std_in < stream);
 
     save_to_stream(variables, tasks, stream);
-    process.terminate();
+    stream.pipe().close();
+    process.wait();
     return process.exit_code() == 0;
   }
   return destroy();

@@ -1,3 +1,5 @@
+import intf_libs += libcrails-semantics%lib{crails-semantics}
+
 if ($config.libcrails_crontab.alt_build2_imports)
   import libs += libboost-process%lib{boost_process}
 else

@@ -9,12 +9,38 @@ namespace boost_process = boost::process;
 namespace boost_process = boost::process::v2;
 #endif
 #include <boost/asio.hpp>
+#include <future>
 #include <sstream>
 #include <regex>
 #include <iomanip>
+#include <filesystem>
+#include <crails/utils/split.hpp>
+#include <unistd.h>
 
 using namespace Crails;
 using namespace std;
+
+static string crontab_binary()
+{
+  const char* env_path = getenv("PATH");
+  string current_path = filesystem::current_path().string();
+  list<string_view> candidates;
+  char env_separator = ':';
+
+  if (env_path)
+    candidates = Crails::split<string_view>(env_path, env_separator);
+  candidates.insert(candidates.begin(), string_view(current_path));
+  for (const string_view part : candidates)
+  {
+    error_code ec;
+    filesystem::path path = filesystem::path(part) / "crontab";
+    bool regular_file = filesystem::is_regular_file(path, ec);
+
+    if (!ec && regular_file && ::access(path.string().c_str(), X_OK) == 0)
+      return path.string();
+  }
+  return string();
+}
 
 static pair<string,string> read_variable(const string_view line)
 {
@@ -77,7 +103,7 @@ static string task_to_string(const Crontab::Task& task)
     : (crontask + " #name=" + task.name);
 }
 
-static string drain_pipe(boost::asio::readable_pipe& pipe)
+static string drain_pipe(boost::asio::readable_pipe& pipe, std::size_t buffer_capacity)
 {
   string result;
   boost::system::error_code ec;
@@ -87,11 +113,12 @@ static string drain_pipe(boost::asio::readable_pipe& pipe)
   do
   {
     n = pipe.read_some(boost::asio::buffer(buffer), ec);
-    if (n > 0)
+    if (n > 0 && (buffer_capacity < 0 || result.length() < buffer_capacity))
       result.append(buffer, n);
   } while (!ec && n > 0);
   return result;
 }
+
 
 static void load_from_line(map<string,string>& variables, vector<Crontab::Task>& tasks, const string_view input, size_t n, size_t i)
 {
@@ -124,13 +151,6 @@ static void load_from_string(map<string,string>& variables, vector<Crontab::Task
     load_from_line(variables, tasks, input, n, input.length());
 }
 
-static void load_from_pipe(map<string,string>& variables, vector<Crontab::Task>& tasks, boost::asio::readable_pipe& pipe)
-{
-  string input = drain_pipe(pipe);
-
-  load_from_string(variables, tasks, input);
-}
-
 static void save_to_stream(const map<string,string>& variables, const vector<Crontab::Task>& tasks, std::ostream& stream)
 {
   for (const auto& entry : variables)
@@ -156,12 +176,13 @@ void Crontab::load()
   boost::asio::io_context ios;
   boost::asio::readable_pipe std_out(ios);
   boost_process::process process(
-    ios, "/usr/bin/crontab", {"-l"},
+    ios, crontab_binary(), {"-l"},
     boost_process::process_stdio{nullptr, std_out, {}}
   );
+  future<string> captured_output = async(launch::async, &drain_pipe, ref(std_out), 0);
 
   process.wait();
-  load_from_pipe(variables, tasks, std_out);
+  load_from_string(string_view(captured_output.get()));
 }
 
 bool Crontab::save()
@@ -173,7 +194,7 @@ bool Crontab::save()
     boost::asio::writable_pipe std_in(ios);
     boost::asio::connect_pipe(sink, std_in);
     boost_process::process process(
-      ios, "/usr/bin/crontab", {},
+      ios, crontab_binary(), {},
       boost_process::process_stdio{sink, {}, {}}
     );
 
@@ -188,7 +209,7 @@ bool Crontab::save()
 bool Crontab::destroy()
 {
   boost::asio::io_context ios;
-  boost_process::process process(ios, "/usr/bin/crontab", {"-r"});
+  boost_process::process process(ios, crontab_binary(), {"-r"});
 
   process.wait();
   return process.exit_code() == 0;
