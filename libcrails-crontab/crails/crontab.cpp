@@ -103,7 +103,7 @@ static string task_to_string(const Crontab::Task& task)
     : (crontask + " #name=" + task.name);
 }
 
-static string drain_pipe(boost::asio::readable_pipe& pipe, std::size_t buffer_capacity)
+static string drain_pipe(boost::asio::readable_pipe& pipe, long buffer_capacity)
 {
   string result;
   boost::system::error_code ec;
@@ -179,10 +179,12 @@ void Crontab::load()
     ios, crontab_binary(), {"-l"},
     boost_process::process_stdio{nullptr, std_out, {}}
   );
-  future<string> captured_output = async(launch::async, &drain_pipe, ref(std_out), 0);
+  future<string> captured_output = async(launch::async, &drain_pipe, ref(std_out), -1);
+  string tmp;
 
   process.wait();
-  load_from_string(string_view(captured_output.get()));
+  tmp = captured_output.get();
+  load_from_string(tmp);
 }
 
 bool Crontab::save()
